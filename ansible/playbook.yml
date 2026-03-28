@@ -1,24 +1,45 @@
 ---
-- hosts: webserver
-  become: yes
-  vars:
-    web_content: "Good things happen to Good people, no need to worry"
+- name: Deploy Simple Web App on EC2
+  hosts: webserver
+  become: true
+
   tasks:
+
     - name: Install Nginx
       yum:
         name: nginx
         state: present
 
-    - name: Ensure Nginx is started and enabled
+    - name: Ensure Nginx is running and enabled
       service:
         name: nginx
         state: started
-        enabled: yes
+        enabled: true
 
-    - name: Deploy index.html
-      copy:
-        dest: /usr/share/nginx/html/index.html
-        content: "{{ web_content }}"
+    - name: Install Git
+      yum:
+        name: git
+        state: present
+
+    - name: Remove default Nginx HTML
+      file:
+        path: /usr/share/nginx/html
+        state: absent
+
+    - name: Clone TodoMVC simple web app
+      git:
+        repo: 'https://github.com/tastejs/todomvc.git'
+        dest: /usr/share/nginx/html
+        version: 'gh-pages'
+
+    - name: Set correct permissions for Nginx
+      file:
+        path: /usr/share/nginx/html
         owner: nginx
         group: nginx
-        mode: '0644'
+        recurse: yes
+
+    - name: Restart Nginx to load new web app
+      service:
+        name: nginx
+        state: restarted
