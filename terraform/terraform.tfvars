@@ -1,6 +1,6 @@
 aws_region         = "us-east-2"
 instance_type      = "t2.micro"
-key_name           = "nginx-key"
+key_name           = "server"
 subnet_id          = "subnet-0c90e644b5d1bef96"
 security_group_id  = "sg-04ba8b6fcdf9bd2d9"
 instance_name      = "nginx-amazonlinux-server"
