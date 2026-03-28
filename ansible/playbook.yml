@@ -1,0 +1,31 @@
+- name: Configure Amazon Linux web server
+  hosts: web
+  become: yes
+
+  tasks:
+    - name: Wait for cloud-init to finish (best effort)
+      shell: |
+        if [ -f /var/lib/cloud/instance/boot-finished ]; then
+          exit 0
+        else
+          sleep 10
+        fi
+      changed_when: false
+      failed_when: false
+
+    - name: Install nginx on Amazon Linux
+      dnf:
+        name: nginx
+        state: present
+
+    - name: Start and enable nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Copy custom index.html
+      copy:
+        src: ../web/index.html
+        dest: /usr/share/nginx/html/index.html
+        mode: '0644'
