@@ -2,13 +2,8 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-        AWS_DEFAULT_REGION    = 'us-east-2'
-    }
-
-    parameters {
-        choice(name: 'ACTION', choices: ['apply','destroy'], description: 'Deploy or Destroy infrastructure')
+        AWS_REGION = 'ap-southeast-1'
+        TF_IN_AUTOMATION = 'true'
     }
 
     stages {
@@ -18,57 +13,77 @@ pipeline {
             }
         }
 
-        stage('Terraform') {
+        stage('Verify AWS IAM Role') {
+            steps {
+                sh 'aws sts get-caller-identity'
+            }
+        }
+
+        stage('Terraform Init') {
             steps {
                 dir('terraform') {
-                    bat 'terraform init'
+                    sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform apply -auto-approve -var="key_name=server"'
                     script {
-                        if (params.ACTION == 'apply') {
-                            bat 'terraform apply -auto-approve'
-                        } else {
-                            bat 'terraform destroy -auto-approve'
-                        }
+                        env.EC2_IP = sh(script: 'terraform output -raw ec2_public_ip', returnStdout: true).trim()
                     }
                 }
             }
         }
 
-        stage('Update Ansible Inventory') {
-            when { expression { params.ACTION == 'apply' } }
+        stage('Wait for EC2 SSH') {
             steps {
-                script {
-                    dir('terraform') {
-                        def ip = bat(script: 'terraform output -raw public_ip', returnStdout: true).trim()
-                        env.EC2_IP = ip
-                    }
-                    powershell """
-                    (Get-Content ansible\\inventory.ini) -replace 'PLACEHOLDER', '$env:EC2_IP' | Set-Content ansible\\inventory.ini
-                    """
+                sh '''
+                    echo "Waiting for EC2 SSH to become available..."
+                    sleep 60
+                '''
+            }
+        }
+
+        stage('Create Ansible Inventory') {
+            steps {
+                dir('ansible') {
+                    writeFile file: 'inventory.ini', text: """[webserver]
+${env.EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3
+"""
+                    sh 'cat inventory.ini'
                 }
             }
         }
 
-        stage('Run Ansible') {
-            when { expression { params.ACTION == 'apply' } }
+        stage('Ansible Deploy Nginx') {
             steps {
-                bat 'ansible-playbook -i ansible\\inventory.ini ansible\\playbook.yml'
+                dir('ansible') {
+                    sshagent(credentials: ['ec2-ssh-key']) {
+                        sh '''
+                            export ANSIBLE_HOST_KEY_CHECKING=False
+                            ansible-playbook -i inventory.ini nginx.yml
+                        '''
+                    }
+                }
             }
         }
 
-        stage('Website URL') {
-            when { expression { params.ACTION == 'apply' } }
+        stage('Show Website URL') {
             steps {
-                echo "Website available at: http://${env.EC2_IP}"
+                sh 'echo "Website URL: http://${EC2_IP}"'
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline finished successfully."
+            echo "Deployment successful! Open: http://${env.EC2_IP}"
         }
         failure {
-            echo "Pipeline failed. Check logs."
+            echo "Deployment failed. Check console output."
         }
     }
 }
