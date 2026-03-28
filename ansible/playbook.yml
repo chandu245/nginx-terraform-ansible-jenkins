@@ -1,5 +1,5 @@
 ---
-- name: Deploy "I LOVE YOU TEJU" Web Page
+- name: Deploy "Good things happen to Good people!!!" Web Page
   hosts: webserver
   become: true
 
@@ -38,7 +38,7 @@
           <html lang="en">
           <head>
               <meta charset="UTF-8">
-              <title>I LOVE YOU TEJU</title>
+              <title>Good things happen to Good people!!!</title>
               <style>
                   body {
                       background: linear-gradient(to right, #ff9a9e, #fad0c4);
@@ -65,7 +65,7 @@
               </style>
           </head>
           <body>
-              <h1>I LOVE YOU TEJU</h1>
+              <h1>Good things happen to Good people!!!</h1>
           </body>
           </html>
 
