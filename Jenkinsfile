@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    // Parameter to choose action: deploy or destroy
+    parameters {
+        choice(name: 'ACTION', choices: ['deploy', 'destroy'], description: 'Choose action: deploy or destroy')
+    }
+
     environment {
         AWS_REGION = 'us-east-2'
         TF_IN_AUTOMATION = 'true'
@@ -27,25 +32,35 @@ pipeline {
             }
         }
 
-        stage('Terraform Apply') {
+        stage('Terraform Deploy/Destroy') {
             steps {
                 dir('terraform') {
-                    sh '''
-                        echo "Creating EC2 using Terraform..."
-                        terraform apply -auto-approve -var="key_name=server"
-                    '''
                     script {
-                        env.EC2_IP = sh(
-                            script: 'terraform output -raw public_ip',
-                            returnStdout: true
-                        ).trim()
+                        if (params.ACTION == 'deploy') {
+                            sh '''
+                                echo "Deploying resources with Terraform..."
+                                terraform apply -auto-approve -var="key_name=server"
+                            '''
+                            env.EC2_IP = sh(
+                                script: 'terraform output -raw public_ip',
+                                returnStdout: true
+                            ).trim()
+                            sh 'echo "EC2 Public IP: ${EC2_IP}"'
+                        } else if (params.ACTION == 'destroy') {
+                            sh '''
+                                echo "Destroying Terraform resources..."
+                                terraform destroy -auto-approve -var="key_name=server"
+                            '''
+                        }
                     }
-                    sh 'echo "EC2 Public IP: ${EC2_IP}"'
                 }
             }
         }
 
         stage('Wait for EC2 to be Ready') {
+            when {
+                expression { params.ACTION == 'deploy' }
+            }
             steps {
                 sh '''
                     echo "Waiting 60 seconds for EC2 boot and SSH service..."
@@ -55,6 +70,9 @@ pipeline {
         }
 
         stage('Create Ansible Inventory') {
+            when {
+                expression { params.ACTION == 'deploy' }
+            }
             steps {
                 dir('ansible') {
                     writeFile file: 'inventory.ini', text: """[webserver]
@@ -69,6 +87,9 @@ ${env.EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3
         }
 
         stage('Deploy Nginx using Ansible') {
+            when {
+                expression { params.ACTION == 'deploy' }
+            }
             steps {
                 dir('ansible') {
                     sshagent(credentials: ['ec2-ssh-key']) {
@@ -83,6 +104,9 @@ ${env.EC2_IP} ansible_user=ec2-user ansible_python_interpreter=/usr/bin/python3
         }
 
         stage('Show Website URL') {
+            when {
+                expression { params.ACTION == 'deploy' }
+            }
             steps {
                 sh '''
                     echo "========================================"
