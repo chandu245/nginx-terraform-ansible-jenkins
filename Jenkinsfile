@@ -36,7 +36,7 @@ pipeline {
                     '''
                     script {
                         env.EC2_IP = sh(
-                            script: 'terraform output -raw ec2_public_ip',
+                            script: 'terraform output -raw public_ip',
                             returnStdout: true
                         ).trim()
                     }
