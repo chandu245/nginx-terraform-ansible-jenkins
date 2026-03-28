@@ -1,31 +1,24 @@
-- name: Configure Amazon Linux web server
-  hosts: web
+---
+- hosts: webserver
   become: yes
-
+  vars:
+    web_content: "Good things happen to Good people, no need to worry"
   tasks:
-    - name: Wait for cloud-init to finish (best effort)
-      shell: |
-        if [ -f /var/lib/cloud/instance/boot-finished ]; then
-          exit 0
-        else
-          sleep 10
-        fi
-      changed_when: false
-      failed_when: false
-
-    - name: Install nginx on Amazon Linux
-      dnf:
+    - name: Install Nginx
+      yum:
         name: nginx
         state: present
 
-    - name: Start and enable nginx
+    - name: Ensure Nginx is started and enabled
       service:
         name: nginx
         state: started
         enabled: yes
 
-    - name: Copy custom index.html
+    - name: Deploy index.html
       copy:
-        src: ../web/index.html
         dest: /usr/share/nginx/html/index.html
+        content: "{{ web_content }}"
+        owner: nginx
+        group: nginx
         mode: '0644'
