@@ -1,5 +1,5 @@
 ---
-- name: Deploy Simple Web App on EC2
+- name: Deploy "I LOVE YOU TEJU" Web Page
   hosts: webserver
   become: true
 
@@ -16,30 +16,58 @@
         state: started
         enabled: true
 
-    - name: Install Git
-      yum:
-        name: git
-        state: present
-
     - name: Remove default Nginx HTML
       file:
         path: /usr/share/nginx/html
         state: absent
 
-    - name: Clone TodoMVC simple web app
-      git:
-        repo: 'https://github.com/tastejs/todomvc.git'
-        dest: /usr/share/nginx/html
-        version: 'gh-pages'
+    - name: Create custom index.html
+      copy:
+        dest: /usr/share/nginx/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <title>I LOVE YOU TEJU</title>
+              <style>
+                  body {
+                      background: linear-gradient(to right, #ff9a9e, #fad0c4);
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                      height: 100vh;
+                      font-family: Arial, sans-serif;
+                  }
+                  h1 {
+                      font-size: 80px;
+                      font-weight: bold;
+                      background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);
+                      -webkit-background-clip: text;
+                      color: transparent;
+                      text-align: center;
+                      animation: pulse 2s infinite alternate;
+                  }
+                  @keyframes pulse {
+                      0% { transform: scale(1); }
+                      50% { transform: scale(1.1); }
+                      100% { transform: scale(1); }
+                  }
+              </style>
+          </head>
+          <body>
+              <h1>I LOVE YOU TEJU</h1>
+          </body>
+          </html>
 
-    - name: Set correct permissions for Nginx
+    - name: Set permissions for Nginx
       file:
         path: /usr/share/nginx/html
         owner: nginx
         group: nginx
         recurse: yes
 
-    - name: Restart Nginx to load new web app
+    - name: Restart Nginx to load new page
       service:
         name: nginx
         state: restarted
