@@ -16,10 +16,19 @@
         state: started
         enabled: true
 
-    - name: Remove default Nginx HTML
+    - name: Create Nginx html directory
       file:
         path: /usr/share/nginx/html
+        state: directory
+        owner: nginx
+        group: nginx
+        mode: '0755'
+
+    - name: Remove default Nginx HTML (optional)
+      file:
+        path: /usr/share/nginx/html/*
         state: absent
+      ignore_errors: true
 
     - name: Create custom index.html
       copy:
